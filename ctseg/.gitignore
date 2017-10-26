@@ -1,0 +1,41 @@
+## generated files
+*.pyc
+*.o
+*.so
+*.dSYM/
+*.test
+
+## SWIG generated files
+swig/*.cc
+python/cthyb.py
+
+## Setuptools generated files
+build/
+*.egg-info/
+dist/
+
+## output files
+*.hdf5
+*.log
+*.dat
+*.out
+system-????????*/
+cthyb-????????*/
+callgrind.out.*
+perf.data
+
+## local files
+bundled/
+config.mk
+
+## patching
+*.patch
+*.orig
+*.rej
+
+## misc files
+.*
+*~
+\#*\#
+*.old
+
