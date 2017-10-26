@@ -14,7 +14,7 @@ all: hypot.pdf
 %.tex: %.lyx
 	$(LYX) --export-to pdflatex $@ $<
 
-hypot.pdf: figs/*.pdf
+hypot.pdf: ../figs/*.pdf hypot.bib
 
 clean:
 	-rm -rf *.log *.aux *.out *.bbl *.blg
