@@ -8,6 +8,8 @@ Please DO NOT re-use or re-distribute this solver without my permission.
 
 Installation
 ------------
+Needs Python >= 2.4, numpy >= 1.4, scipy >= 0.10, Eigen >= 3.2, optionally NFFT.
+
 To compile:
 
     $ make
