@@ -1,0 +1,2675 @@
+#LyX 2.2 created this file. For more info see http://www.lyx.org/
+\lyxformat 508
+\begin_document
+\begin_header
+\save_transient_properties true
+\origin unavailable
+\textclass revtex4-1
+\begin_preamble
+\usepackage[usenames]{color}
+
+\usepackage{hyperref}
+\end_preamble
+\options twocolumn,10pt,pre
+\use_default_options true
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman "default" "default"
+\font_sans "default" "default"
+\font_typewriter "default" "default"
+\font_math "auto" "auto"
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100 100
+\font_tt_scale 100 100
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command bibtex
+\index_command default
+\paperfontsize 11
+\spacing single
+\use_hyperref false
+\papersize default
+\use_geometry true
+\use_package amsmath 1
+\use_package amssymb 1
+\use_package cancel 1
+\use_package esint 1
+\use_package mathdots 1
+\use_package mathtools 1
+\use_package mhchem 1
+\use_package stackrel 1
+\use_package stmaryrd 1
+\use_package undertilde 1
+\cite_engine basic
+\cite_engine_type default
+\biblio_style apsrmp
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\justification true
+\use_refstyle 1
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\leftmargin 1in
+\topmargin 1in
+\rightmargin 1in
+\bottommargin 1in
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\quotes_language english
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Title
+Hypothesis testing of scientific Monte Carlo calculations
+\end_layout
+
+\begin_layout Author
+Markus Wallerberger, Emanuel Gull
+\end_layout
+
+\begin_layout Affiliation
+Department of Physics, University of Michigan, Ann Arbor, MI 48109
+\end_layout
+
+\begin_layout Abstract
+The steadily increasing size of scientific Monte Carlo simulations and the
+ desire for robust, correct, and reproducible results necessitates rigorous
+ testing procedures for scientific simulations in order to detect numerical
+ problems and programming bugs.
+ However, the testing paradigms developed for deterministic algorithms have
+ proven to be ill suited for stochastic algorithms.
+ In this paper we demonstrate explicitly how the technique of statistical
+ hypothesis testing, which is in wide use in other fields of science, can
+ be used to devise automatic and reliable tests for Monte Carlo methods,
+ and we show that these tests are able to detect some of the common problems
+ encountered in stochastic scientific simulations.
+ We argue that hypothesis testing should become part of the standard testing
+ toolkit for scientific simulations.
+\end_layout
+
+\begin_layout Section
+Introduction
+\end_layout
+
+\begin_layout Standard
+Scientific computing, i.e., the process of obtaining numerical results from
+ scientific theories using algorithms, relies on correct and reproducible
+ implementations of computer programs.
+ In condensed matter and statistical physics, these computer programs were
+ traditionally small, often implemented by a single researcher, and tested
+ and debugged by hand until no more problems could be found.
+\end_layout
+
+\begin_layout Standard
+Over time, the size and complexity of programs in this field has grown rapidly.
+ For example, computer programs for complex many-body problems, such as
+ finding the ground state energy of an interacting solid 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "QMCPACK12"
+
+\end_inset
+
+ or evaluating response functions of correlated quantum impurity models
+ 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "ALPSCore17,TRIQS15"
+
+\end_inset
+
+, now span hundreds of thousands of lines that are developed and maintained
+ by large and constantly changing teams.
+ For such programs, manual testing becomes inefficient and expensive.
+\end_layout
+
+\begin_layout Standard
+This challenge is not unique to scientific computing, and software engineering
+ has responded by establishing automated testing practices.
+ The corresponding arsenal of methods includes, in order of increasing granulari
+ty: contract programming, where invariants in the program state are verified
+ continuously during execution 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "meyer-comp-1992"
+
+\end_inset
+
+; unit tests, which ensure the correctness of small sections of the code
+ 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "binder-testing-2000"
+
+\end_inset
+
+; as well as integration and system tests, which check that implementations
+ yield correct non-trivial results for predefined benchmark problems 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "ould-testing-1986"
+
+\end_inset
+
+.
+ 
+\end_layout
+
+\begin_layout Standard
+These techniques have permeated scientific software engineering 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "dubois-cse05"
+
+\end_inset
+
+, and they are by now standard in many computational science packages.
+ Combined with continuous testing, i.e., the automatic execution of tests
+ after a change to the code base, they have led to a massive improvement
+ of the quality and resilience of scientific software 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "sanders-ieeesw08"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+Nevertheless, there is a large part of computational and statistical physics
+ where such tests were so far not practical, namely the field of stochastic
+ Monte Carlo simulations.
+ In this domain, results make use of random or pseudo-random number generators,
+ and are therefore intrinsically stochastic in nature.
+  Agreement with a reference result has to be 
+\begin_inset Quotes eld
+\end_inset
+
+within error bars
+\begin_inset Quotes erd
+\end_inset
+
+ only.
+\end_layout
+
+\begin_layout Standard
+As far as we are aware, most practitioners of these techniques therefore
+ either enforce a deterministic procedure (e.g., a simulation with a fixed
+ seed of the pseudo-random number generator or an otherwise fixed sequence
+ of updates on a given configuration) or resort to 
+\begin_inset Quotes eld
+\end_inset
+
+visual inspection
+\begin_inset Quotes erd
+\end_inset
+
+ of the results to determine agreement between simulation and reference,
+ neither of which is optimal.
+ The former breaks whenever the sequence or ratio of updates are changed,
+ and therefore is prone to false negatives, i.e., failed tests even though
+ the results are correct.
+ The latter relies on human intervention and is therefore neither reliable
+ nor automatable.
+\end_layout
+
+\begin_layout Standard
+In this paper, we show how tools of statistics 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "arnold-stat2a"
+
+\end_inset
+
+, known for more than a century and in wide use in many fields, should be
+ used to construct automated tests for physics simulations.
+ Our formulations are general and applicable to any stochastic simulation.
+ While we are not aware of applications to physics so far, we emphasize
+ that similar applications have been pioneered both in the field of image
+ synthesis 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "sevcikova-psta-2006"
+
+\end_inset
+
+ and urban simulations 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "subr-pcga-2007"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+In the remainder of this paper we will introduce the concept of statistical
+ testing or 
+\begin_inset Quotes eld
+\end_inset
+
+hypothesis testing
+\begin_inset Quotes erd
+\end_inset
+
+ in Sec.
+ 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:scalar"
+
+\end_inset
+
+ and 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:series"
+
+\end_inset
+
+, with applications to the two-dimensional Ising model.
+ Sec.
+ 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:AIM"
+
+\end_inset
+
+ shows an application to the Anderson impurity model, and Sec.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:conclusions"
+
+\end_inset
+
+ summarizes our conclusions.
+\end_layout
+
+\begin_layout Section
+Scalar Tests
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:scalar"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+One-sample test for the mean
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:1spl"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The basic idea of statistical hypothesis testing in the context of Monte
+ Carlo is straight-forward: one first chooses a model for which an exact
+ benchmark result 
+\begin_inset Formula $y$
+\end_inset
+
+ exists.
+ The null hypothesis, 
+\begin_inset Formula $H_{0}$
+\end_inset
+
+, is that there is no significant difference between this reference result
+ and the expectation value 
+\begin_inset Formula $\mathrm{E}[\hat{X}]$
+\end_inset
+
+ of a simulation with the estimator 
+\begin_inset Formula $\hat{X}$
+\end_inset
+
+ 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "subr-pcga-2007"
+
+\end_inset
+
+.
+ The alternate hypothesis, 
+\begin_inset Formula $H_{1}$
+\end_inset
+
+, is that this is not the case:
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+begin{subequations}
+\end_layout
+
+\end_inset
+
+
+\begin_inset Formula 
+\begin{align}
+H_{0} & :\mathrm{E}[\hat{X}]=y\label{eq:h0}\\
+H_{1} & :\mathrm{E}[\hat{X}]\neq y.\label{eq:h1}
+\end{align}
+
+\end_inset
+
+
+\begin_inset CommandInset label
+LatexCommand label
+name "eqs:h01"
+
+\end_inset
+
+
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+end{subequations}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+We first discuss the scalar case.
+ Let 
+\begin_inset Formula $\hat{X}$
+\end_inset
+
+ be a 
+\begin_inset Quotes eld
+\end_inset
+
+simple
+\begin_inset Quotes erd
+\end_inset
+
+ Monte Carlo estimator, i.e., an average 
+\begin_inset Formula $\langle X\rangle$
+\end_inset
+
+ over 
+\begin_inset Formula $N$
+\end_inset
+
+ independent random variables identically distributed according to 
+\begin_inset Formula $X$
+\end_inset
+
+.
+ (In the case of sampling on a Markov chain, one has to correct the number
+ 
+\begin_inset Formula $N^{\prime}$
+\end_inset
+
+ of Monte Carlo samples by the integrated autocorrelation time: 
+\begin_inset Formula $N=N^{\prime}/\tau_{\mathrm{int},X}$
+\end_inset
+
+.) We then find:
+\begin_inset Formula 
+\begin{equation}
+\frac{\langle X\rangle-y}{\sigma_{X}/\sqrt{N}}\sim t_{N-1},\label{eq:t}
+\end{equation}
+
+\end_inset
+
+where 
+\begin_inset Formula $\sim$
+\end_inset
+
+ is shorthand for 
+\begin_inset Quotes eld
+\end_inset
+
+is distributed according to
+\begin_inset Quotes erd
+\end_inset
+
+, 
+\begin_inset Formula $t_{\nu}$
+\end_inset
+
+ is Student's 
+\begin_inset Formula $t$
+\end_inset
+
+ distribution for 
+\begin_inset Formula $\nu$
+\end_inset
+
+ degrees of freedom and 
+\begin_inset Formula $\sigma_{X}^{2}$
+\end_inset
+
+ is the variance of 
+\begin_inset Formula $X$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+Following standard practice 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "neyman-ptrsoca-1933"
+
+\end_inset
+
+, we turn Eq.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:t"
+
+\end_inset
+
+ into a likelihood estimate for 
+\begin_inset Formula $H_{0}$
+\end_inset
+
+, known as Student's 
+\begin_inset Formula $t$
+\end_inset
+
+ test.
+ We compute the two-sided 
+\begin_inset Formula $p$
+\end_inset
+
+-value as 
+\begin_inset Formula $p=2P^{-1}(-|z|)$
+\end_inset
+
+, where 
+\begin_inset Formula $P^{-1}$
+\end_inset
+
+ is the inverse of the cumulative distribution function of the right-hand
+ side and 
+\begin_inset Formula $z$
+\end_inset
+
+ is the observed left-hand side in Eq.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:t"
+
+\end_inset
+
+.
+ Finally, we compare 
+\begin_inset Formula $p$
+\end_inset
+
+ with a significance level 
+\begin_inset Formula $\alpha\in(0,1)$
+\end_inset
+
+ and reject the null hypothesis 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:h0"
+
+\end_inset
+
+ if 
+\begin_inset Formula $p<\alpha$
+\end_inset
+
+.
+ In other words, the 
+\begin_inset Formula $p$
+\end_inset
+
+ value is the probability of observing 
+\begin_inset Formula $z$
+\end_inset
+
+ or a 
+\begin_inset Quotes eld
+\end_inset
+
+more unlikely
+\begin_inset Quotes erd
+\end_inset
+
+ event given 
+\begin_inset Formula $H_{0}$
+\end_inset
+
+, and we reject the 
+\begin_inset Formula $H_{0}$
+\end_inset
+
+ if that probability becomes smaller than 
+\begin_inset Formula $\alpha$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename ../figs/m.pdf
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Scalar one-sample test against 
+\begin_inset Formula $\langle m\rangle=0$
+\end_inset
+
+ for single spin-flip updates (red curves) and Wolff cluster updates (blue
+ curves) in a classical two-dimensional Ising model with length 
+\begin_inset Formula $L=16$
+\end_inset
+
+: (a) result for 
+\begin_inset Formula $\langle m\rangle$
+\end_inset
+
+ from 
+\begin_inset Formula $N^{\prime}=10^{6}$
+\end_inset
+
+ Monte Carlo sweeps (a sweep is either a set of 
+\begin_inset Formula $L^{2}$
+\end_inset
+
+ single spin flips or a single cluster update); (b) 
+\begin_inset Formula $|t|$
+\end_inset
+
+ score as the left-hand side of Eq.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:t"
+
+\end_inset
+
+; and (c) 
+\begin_inset Formula $p$
+\end_inset
+
+ values from a two-tailed test of the 
+\begin_inset Formula $t$
+\end_inset
+
+ score against the Student 
+\begin_inset Formula $t_{N-1}$
+\end_inset
+
+ distribution (the shaded area indicates 
+\begin_inset Formula $p<\alpha=0.01$
+\end_inset
+
+ and thus a failed test).
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:m"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Let us illustrate the procedure with a simple example, the ferromagnetic
+ Ising model 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "LandauBinder05"
+
+\end_inset
+
+
+\begin_inset Formula 
+\begin{equation}
+\mathcal{H}=-\sum_{\langle ij\rangle}\sigma_{i}\sigma_{j},\label{eq:ising}
+\end{equation}
+
+\end_inset
+
+where 
+\begin_inset Formula $\langle ij\rangle$
+\end_inset
+
+ runs over all pairs of directly neighboring Ising spins 
+\begin_inset Formula $\sigma_{i}\in\{1,-1\}$
+\end_inset
+
+ on a 
+\begin_inset Formula $L\times L$
+\end_inset
+
+ square lattice with periodic boundary conditions and 
+\begin_inset Formula $L=16$
+\end_inset
+
+.
+ Since the system is finite and there is no external magnetic field, 
+\begin_inset Formula $\langle m\rangle=0$
+\end_inset
+
+.
+ We perform a Markov chain Monte Carlo simulation 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "Metropolis53"
+
+\end_inset
+
+ for Eq.
+\begin_inset space ~
+\end_inset
+
+(
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:ising"
+
+\end_inset
+
+) for two different types of updates: (a) a set of single spin flips 
+\begin_inset Formula $\sigma_{i}\to-\sigma_{i}$
+\end_inset
+
+, and (b) Wolff cluster updates 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "Wolff89"
+
+\end_inset
+
+.
+ In both cases, the magnetization estimator is constructed as 
+\begin_inset Formula $\hat{m}=\langle\sum_{i}\sigma_{i}\rangle/L^{2}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+Fig.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:m"
+
+\end_inset
+
+ shows the temperature-dependent magnetization curves obtained by the simulation.
+ From Fig.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:m"
+
+\end_inset
+
+(a), we immediately see that the single spin flip updates (red curve) produce
+ a spurious spin polarization at low temperature for the parameters chosen.
+ This is to be expected, since in order to restore 
+\begin_inset Formula $\langle m\rangle=0$
+\end_inset
+
+, all spins must be flipped, which due to the exponentially divergent autocorrel
+ation time 
+\begin_inset Formula $\tau\propto\exp(L)$
+\end_inset
+
+ requires far more updates than performed in our test.
+ Figure
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:m"
+
+\end_inset
+
+(b) shows the 
+\begin_inset Formula $|t|$
+\end_inset
+
+ score or deviation in units of the standard error computed from Eq.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:t"
+
+\end_inset
+
+.
+ Figure
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:m"
+
+\end_inset
+
+(c) shows the 
+\begin_inset Formula $p$
+\end_inset
+
+ value as result of a two-tailed test with the Student distribution, which
+ amounts to 
+\begin_inset Formula $p=2P^{-1}(-|t|)$
+\end_inset
+
+.
+ If we choose a significance level of 
+\begin_inset Formula $\alpha=0.01$
+\end_inset
+
+, we see that the test fails for all temperatures below the critical temperature
+, 
+\begin_inset Formula $T<2.2$
+\end_inset
+
+.
+ In contrast, the Wolff updates, which circumvent the problem of divergent
+ autocorrelation times by updating clusters of spins, pass the test for
+ all temperatures.
+\end_layout
+
+\begin_layout Standard
+The spurious spin polarization is already obvious from a fleeting inspection
+ of Fig.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:m"
+
+\end_inset
+
+(a), and a formal verification of Eq.
+\begin_inset space ~
+\end_inset
+
+(
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:h1"
+
+\end_inset
+
+) may seem superfluous.
+ However, we emphasize that the formal procedure can easily be turned into
+ an automated test and run as part of an automated test suite.
+ This extends the test coverage from the deterministic parts of the algorithm
+ to the stochastic updates and the magnetization estimator and its autocorrelati
+on effects.
+\end_layout
+
+\begin_layout Standard
+The choice of significance level 
+\begin_inset Formula $\alpha$
+\end_inset
+
+ is a trade-off between the probability of two kinds of errors:
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+begin{subequations}
+\end_layout
+
+\end_inset
+
+
+\begin_inset Formula 
+\begin{align}
+\alpha & =P(H_{0}\mathrm{\,rejected}\,|\,H_{0}\mathrm{\,is\,true})\label{eq:alpha}\\
+\beta & =P(H_{0}\mathrm{\,accepted}\,|\,H_{0}\mathrm{\,is\,false}),\label{eq:beta}
+\end{align}
+
+\end_inset
+
+
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+end{subequations}
+\end_layout
+
+\end_inset
+
+known as type-I and type-II errors, or false positives and false negatives,
+ respectively.
+ We empirically find that the rather conservative 
+\begin_inset Formula $\alpha\approx0.01$
+\end_inset
+
+ provides such a good trade-off for a single test.
+ In the case of a test suite of 
+\begin_inset Formula $K$
+\end_inset
+
+ tests, one can either substitute 
+\begin_inset Formula $\alpha\to\alpha^{\prime}\approx\alpha/K$
+\end_inset
+
+ to keep the probability of a type-I error constant or keep the threshold
+ as-is to keep the probability of a type-II error constant.
+ The former scheme is suited for automatized stochastic unit tests, the
+ latter strategy is advantageous when combined with test refinement.
+ In such a scheme, we choose a window 
+\begin_inset Formula $p\in[\alpha,\beta)$
+\end_inset
+
+ corresponding to ambiguous test results and re-run these cases with double
+ the number of samples until they are either accepted or rejected.
+\end_layout
+
+\begin_layout Subsection
+Two-sample test; biased estimator
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:2spl"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+In many cases, exact benchmark results may not be available or cumbersome
+ to obtain.
+ In these cases, we can also compare two stochastic results: the estimator
+ 
+\begin_inset Formula $\hat{X}$
+\end_inset
+
+ to be tested and a trusted estimator 
+\begin_inset Formula $\hat{Y}$
+\end_inset
+
+.
+ This corresponds to replacing 
+\begin_inset Formula $y$
+\end_inset
+
+ with 
+\begin_inset Formula $\mathrm{E}[\hat{Y}]$
+\end_inset
+
+ in Eqs.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eqs:h01"
+
+\end_inset
+
+:
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+begin{subequations}
+\end_layout
+
+\end_inset
+
+
+\begin_inset Formula 
+\begin{align}
+H_{0} & :\mathrm{E}[\hat{X}]=\mathrm{E}[\hat{Y}]\label{eq:h20}\\
+H_{1} & :\mathrm{E}[\hat{X}]\neq\mathrm{E}[\hat{Y}]\label{eq:h21}
+\end{align}
+
+\end_inset
+
+
+\begin_inset CommandInset label
+LatexCommand label
+name "eqs:h201"
+
+\end_inset
+
+
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+end{subequations}
+\end_layout
+
+\end_inset
+
+In the scalar case, with 
+\begin_inset Formula $\hat{X}$
+\end_inset
+
+ and 
+\begin_inset Formula $\hat{Y}$
+\end_inset
+
+ averages over 
+\begin_inset Formula $N_{X}$
+\end_inset
+
+ and 
+\begin_inset Formula $N_{Y}$
+\end_inset
+
+ independent random variables distributed according to 
+\begin_inset Formula $X$
+\end_inset
+
+ and 
+\begin_inset Formula $Y$
+\end_inset
+
+, we find the analogue of Eq.
+\begin_inset space ~
+\end_inset
+
+(
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:t"
+
+\end_inset
+
+), 
+\begin_inset Formula 
+\begin{equation}
+\frac{\langle X\rangle-\langle Y\rangle}{\sigma/N_{\mu}}\sim t_{N_{X}+N_{Y}-2},\label{eq:tpooled}
+\end{equation}
+
+\end_inset
+
+with 
+\begin_inset Formula $N_{\mu}^{-1}=N_{X}^{-1}+N_{Y}^{-1}$
+\end_inset
+
+ and the pooled variance
+\begin_inset Formula 
+\begin{equation}
+\sigma^{2}=\frac{(N_{X}-1)\sigma_{X}^{2}+(N_{Y}-1)\sigma_{Y}^{2}}{N_{X}+N_{Y}-2}.\label{eq:pooled}
+\end{equation}
+
+\end_inset
+
+The rest of the test proceeds exactly the same as for the one-sample test
+ (Sec.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:1spl"
+
+\end_inset
+
+).
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename ../figs/u4_buggy.pdf
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Scalar two-sample test for the Binder cumulant 
+\begin_inset Formula $U_{4}$
+\end_inset
+
+ in the Ising model obtained from Markov chain Monte Carlo with Wolff cluster
+ updates at temperature 
+\begin_inset Formula $T=2.3$
+\end_inset
+
+ for system length 
+\begin_inset Formula $L=32$
+\end_inset
+
+.
+ (a) Sample mean of 
+\begin_inset Formula $U_{4}$
+\end_inset
+
+ of an erroneous implementation for different simulation times 
+\begin_inset Formula $N$
+\end_inset
+
+, and the result of a correct reference simulation; (b) corresponding 
+\begin_inset Formula $p$
+\end_inset
+
+ values computed using Eq.
+\begin_inset space ~
+\end_inset
+
+(
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:tpooled"
+
+\end_inset
+
+); (c) illustration of the 
+\begin_inset Formula $p$
+\end_inset
+
+ value for 
+\begin_inset Formula $N^{\prime}=10^{3}$
+\end_inset
+
+ (
+\begin_inset Formula $N=123$
+\end_inset
+
+ after the removal of autocorrelation and variance pooling) as the shaded
+ area under the probability density function (p.d.f.) of the corresponding
+ 
+\begin_inset Formula $t$
+\end_inset
+
+ distribution.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:u4"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+As an example, we reexamine data from the Ising model, this time on a 
+\begin_inset Formula $32\times32$
+\end_inset
+
+ square lattice.
+ We verify the estimator for the Binder cumulant 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "Binder81"
+
+\end_inset
+
+
+\begin_inset Formula 
+\begin{equation}
+\hat{U}_{4}=\frac{\langle m^{4}\rangle}{1-3\langle m^{2}\rangle^{2}}.\label{eq:u4}
+\end{equation}
+
+\end_inset
+
+The Student 
+\begin_inset Formula $t^{2}$
+\end_inset
+
+ test is sensitive to non-Gaussian distributed errors, which occur in the
+ computation of Eq.
+\begin_inset space ~
+\end_inset
+
+(
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:u4"
+
+\end_inset
+
+) due to non-linear error propagation.
+ To remedy this, we use the jackknife resampling procedure, which replaces
+ Eq.
+\begin_inset space ~
+\end_inset
+
+(
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:u4"
+
+\end_inset
+
+) with a simple average 
+\begin_inset Formula $\langle U_{4}^{\prime}\rangle$
+\end_inset
+
+ over pseudovalues 
+\begin_inset Formula $U_{4}^{\prime}$
+\end_inset
+
+, removing the linear order of the bias and restoring the validity of Eq.
+\begin_inset space ~
+\end_inset
+
+(
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:tpooled"
+
+\end_inset
+
+) 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "efron-jackknife"
+
+\end_inset
+
+.
+ Alternatively, one could abandon the the Student test altogether in favor
+ of the parametric bootstrap method 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "efron-jackknife"
+
+\end_inset
+
+.
+ However, we will see that the jackknife method suffices in our case.
+\end_layout
+
+\begin_layout Standard
+To simulate a common programming error, we have artificially broken periodic
+ boundary conditions on the corners of the lattice (they are reduced to
+ having two neighbors each).
+ Fig.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:u4"
+
+\end_inset
+
+(a) compares this erroneous implementation (green curve) with a simulation
+ result where the error is not present.
+ As evident from Fig.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:u4"
+
+\end_inset
+
+(b), as we increase the number of Monte Carlo sweeps 
+\begin_inset Formula $N^{\prime}$
+\end_inset
+
+, the error bars shrink and the null hypothesis (
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:h20"
+
+\end_inset
+
+) is rejected more and more strongly.
+\end_layout
+
+\begin_layout Section
+Data series tests
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:series"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Tests for the mean
+\end_layout
+
+\begin_layout Standard
+While tests for scalar quantities (Sec.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:scalar"
+
+\end_inset
+
+) are useful, we empirically find that it is often easier to identify problems
+ when comparing functions and data series.
+ In the case of a one-sample test, this corresponds to the benchmark result
+ 
+\begin_inset Formula $y$
+\end_inset
+
+ being a vector of 
+\begin_inset Formula $n$
+\end_inset
+
+ elements rather than a scalar.
+ Consequently, the Monte Carlo estimator 
+\begin_inset Formula $\hat{X}$
+\end_inset
+
+ is vector-valued.
+ Again assuming independent and identically distributed results, Eq.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:t"
+
+\end_inset
+
+ is replaced by 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "hotelling-amstat-1931"
+
+\end_inset
+
+
+\begin_inset Formula 
+\begin{equation}
+N(\langle X\rangle-x_{0})^{\mathrm{T}}\Sigma_{X}^{-1}(\langle X\rangle-x_{0})\sim\frac{n(N-1)}{N-n}F_{n,N-n}\;,\label{eq:f}
+\end{equation}
+
+\end_inset
+
+where 
+\begin_inset Formula $\langle X\rangle$
+\end_inset
+
+ is the sample mean, 
+\begin_inset Formula $\Sigma_{X}$
+\end_inset
+
+ is the sample covariance matrix, and 
+\begin_inset Formula $F_{a,b}$
+\end_inset
+
+ is the Fisher–Snedecor distribution with parameters 
+\begin_inset Formula $a$
+\end_inset
+
+, 
+\begin_inset Formula $b$
+\end_inset
+
+.
+ One proceeds in a similar way to the Student's 
+\begin_inset Formula $t$
+\end_inset
+
+-test.
+ The observed left-hand side of Eq.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:f"
+
+\end_inset
+
+ is again used as the test statistic and checked against the right-hand
+ side distribution.
+ However, since the 
+\begin_inset Formula $F$
+\end_inset
+
+ distribution is not symmetric for low 
+\begin_inset Formula $n$
+\end_inset
+
+ (cf.
+\begin_inset space ~
+\end_inset
+
+Fig.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:chi"
+
+\end_inset
+
+(c)), one uses two one-sided tests instead of a two-sided test and subsequently
+ obtains two 
+\begin_inset Formula $p$
+\end_inset
+
+-values, which we will call 
+\begin_inset Formula $p_{<}$
+\end_inset
+
+ and 
+\begin_inset Formula $p_{>}$
+\end_inset
+
+.
+ This is known as Hotelling's 
+\begin_inset Formula $T^{2}$
+\end_inset
+
+ test.
+\end_layout
+
+\begin_layout Standard
+In the case where we compare the estimator to a trusted result 
+\begin_inset Formula $\langle Y\rangle$
+\end_inset
+
+, we proceed similar as in Sec.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:2spl"
+
+\end_inset
+
+ and replace Eq.
+\begin_inset space ~
+\end_inset
+
+(
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:f"
+
+\end_inset
+
+) with:
+\begin_inset Formula 
+\begin{equation}
+\begin{split} & N_{\mu}(\langle X\rangle-\langle Y\rangle)^{\mathrm{T}}\Sigma^{-1}(\langle X\rangle-\langle Y\rangle)\\
+ & \qquad\sim\frac{n(N_{X}+N_{Y}-2)}{N_{X}+N_{Y}-n-1}F_{n,N_{X}+N_{Y}-n-1}\;,
+\end{split}
+\label{eq:fpooled}
+\end{equation}
+
+\end_inset
+
+where 
+\begin_inset Formula $\Sigma$
+\end_inset
+
+ is the pooled covariance obtained by replacing all variances 
+\begin_inset Formula $\sigma_{a}^{2}$
+\end_inset
+
+ with covariance matrices 
+\begin_inset Formula $\Sigma_{a}$
+\end_inset
+
+ in Eq.
+\begin_inset space ~
+\end_inset
+
+(
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:pooled"
+
+\end_inset
+
+).
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename ../figs/chi.pdf
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Vector-valued two-sample test on the spin correlation function 
+\begin_inset Formula $\chi_{x,0}$
+\end_inset
+
+ (cf.
+\begin_inset space ~
+\end_inset
+
+Eq.
+\begin_inset space ~
+\end_inset
+
+(
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:chi"
+
+\end_inset
+
+)).
+ (a) Simulation result for Wolff updates (black curve) and single spin-flip
+ updates (red curve); (b) deviation of spin-flip from Wolff update (the
+ shaded region are the Wolff result error bars); (c) Projected deviations
+ and errors (numerator and denominator in the l.h.s.
+ of Eq.
+\begin_inset space ~
+\end_inset
+
+(
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:frestr"
+
+\end_inset
+
+)); (d) correlation matrix (
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:corr"
+
+\end_inset
+
+); (e) p.d.f.
+ of the corresponding 
+\begin_inset Formula $F$
+\end_inset
+
+ distribution in Eq.
+\begin_inset space ~
+\end_inset
+
+(
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:frestr"
+
+\end_inset
+
+) with the mean as vertical blue line and 
+\begin_inset Formula $p_{<}$
+\end_inset
+
+-value as blue shaded area to the left of the observed 
+\begin_inset Formula $T^{2}$
+\end_inset
+
+ score (blue dot) as well as test failure threshold as red-shaded area.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:chi"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+In order to illustrate the procedure, we revisit our Ising model example
+ for 
+\begin_inset Formula $L=32$
+\end_inset
+
+ and 
+\begin_inset Formula $T=2.3$
+\end_inset
+
+ (close to the critical temperature) and examine the spin correlation function
+\begin_inset Formula 
+\begin{equation}
+\begin{split}\chi_{x,y} & =\langle\sigma_{0,0}\sigma_{x,y}\rangle\\
+ & =\frac{1}{L^{2}}\langle\sum_{k,q}\sum_{x^{\prime},y^{\prime}}\mathcal{F}_{x,y;k,q}^{-1}|\mathcal{F}_{k,q;x^{\prime},y^{\prime}}\sigma_{x^{\prime},y^{\prime}}|^{2}\rangle,
+\end{split}
+\label{eq:chi}
+\end{equation}
+
+\end_inset
+
+where 
+\begin_inset Formula $(x,y)$
+\end_inset
+
+ denote row and column of the lattice site, and 
+\begin_inset Formula $\mathcal{F}$
+\end_inset
+
+ denotes the discrete Fourier transform used in the actual estimator.
+ Fig.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:chi"
+
+\end_inset
+
+(a) shows 
+\begin_inset Formula $\chi_{x0}$
+\end_inset
+
+ for the Wolff cluster update (black curve), which we take as the trusted
+ result, and for a set of spin-flip updates (red curve).
+ The inset Fig.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:chi"
+
+\end_inset
+
+(b) shows the deviation of the red curve from the black one, where the shaded
+ region marks the error bars of the Wolff update result.
+ We see significant correlation of the error bars, which underscores the
+ importance of a proper treatment of the covariance matrix (cf.
+\begin_inset space ~
+\end_inset
+
+Fig.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:chi"
+
+\end_inset
+
+(d)).
+\end_layout
+
+\begin_layout Subsection
+Cross-correlated data
+\end_layout
+
+\begin_layout Standard
+A common complication with the 
+\begin_inset Formula $T^{2}$
+\end_inset
+
+ test are perfect correlation or anti-correlation within the dataset (duplicates
+), which implies a singular covariance matrix in Eq.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:f"
+
+\end_inset
+
+.
+ In our example, the symmetry of the system implies 
+\begin_inset Formula $\chi_{x,y}=x_{L-x,y}$
+\end_inset
+
+, thus half of the points yielded by the estimator (
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:chi"
+
+\end_inset
+
+) are just copies of the other half.
+ We can confirm this by examining the correlation matrix:
+\begin_inset Formula 
+\begin{equation}
+\mathrm{Corr}[\chi_{x,0},\chi_{x^{\prime},0}]=\frac{\mathrm{Cov}[\chi_{x,0},\chi_{x^{\prime},0}]}{\sqrt{\mathrm{Var}[\chi_{x,0}]\mathrm{Var}[\chi_{x^{\prime},0}]}},\label{eq:corr}
+\end{equation}
+
+\end_inset
+
+plotted in Fig.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:chi"
+
+\end_inset
+
+(d), which is one on the anti-diagonal.
+\end_layout
+
+\begin_layout Standard
+This can be solved by first diagonalizing 
+\begin_inset Formula $\Sigma$
+\end_inset
+
+ and retaining only the non-zero eigenvalues (a relative threshold of 
+\begin_inset Formula $10^{-14}$
+\end_inset
+
+ seems to be practical for most cases we studied):
+\begin_inset Formula 
+\begin{equation}
+\Sigma=\mathcal{P}\;\mathrm{diag}(s_{1}^{2},\ldots,s_{m}^{2})\;\mathcal{P}^{\mathrm{T}},\label{eq:restr}
+\end{equation}
+
+\end_inset
+
+where 
+\begin_inset Formula $\mathcal{P}$
+\end_inset
+
+ is the 
+\begin_inset Formula $n\times m$
+\end_inset
+
+ projection to the non-zero eigenvalues 
+\begin_inset Formula $s_{1}^{2},\ldots,s_{m}^{2}$
+\end_inset
+
+.
+ This is shown in Fig.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:chi"
+
+\end_inset
+
+(c), where there is sharp drop of 
+\begin_inset Formula $s_{n}$
+\end_inset
+
+ (red curve) in magnitude after 
+\begin_inset Formula $m=15$
+\end_inset
+
+.
+ Eq.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:f"
+
+\end_inset
+
+ is then amended to:
+\begin_inset Formula 
+\begin{equation}
+\sum_{i=1}^{m}\frac{|\sum_{k=1}^{n}\mathcal{P}_{ki}(\langle X_{k}\rangle-y_{k})|^{2}}{s_{i}^{2}/N}\sim\frac{m(N-1)}{N-m}F_{m,N-m}.\label{eq:frestr}
+\end{equation}
+
+\end_inset
+
+Note the reduction in the degrees of freedom from 
+\begin_inset Formula $n$
+\end_inset
+
+ to 
+\begin_inset Formula $m$
+\end_inset
+
+, which corresponds to discarding the 
+\begin_inset Formula $n-m$
+\end_inset
+
+ correlated data points.
+ Note also that for 
+\begin_inset Formula $n=m$
+\end_inset
+
+ Eq.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:f"
+
+\end_inset
+
+ and Eq.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:frestr"
+
+\end_inset
+
+ are equivalent, such that in practical calculations, one can always use
+ Eq.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:frestr"
+
+\end_inset
+
+.
+ Finally, we perform a 
+\begin_inset Formula $T^{2}$
+\end_inset
+
+ test against the appropriate 
+\begin_inset Formula $F$
+\end_inset
+
+ distribution and find that the null hypothesis is accepted with 
+\begin_inset Formula $p\approx0.2$
+\end_inset
+
+ (Fig.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:chi"
+
+\end_inset
+
+(e)).
+\end_layout
+
+\begin_layout Standard
+\begin_inset Note Comment
+status open
+
+\begin_layout Plain Layout
+It is worth taking a moment to discuss the case of a complex-valued data
+ series 
+\begin_inset Formula $X=X^{\prime}+\mathrm{i}X^{\prime\prime}$
+\end_inset
+
+.
+ Two routes for generalizing Eq.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:f"
+
+\end_inset
+
+ are conceivable: one can either (i) replace the transpose in the computation
+ of 
+\begin_inset Formula $\Sigma$
+\end_inset
+
+ and 
+\begin_inset Formula $t^{2}$
+\end_inset
+
+ with the conjugate transpose, or (ii) treat 
+\begin_inset Formula $X^{\prime}$
+\end_inset
+
+ and 
+\begin_inset Formula $X^{\prime\prime}$
+\end_inset
+
+ as separate vectors and use the formulas for the real case on the extended
+ vector.
+ In the large-number limit, the latter yields elliptic error isopleths in
+ the complex plane, while the former enforces the so-called circularity
+ constraint.
+\begin_inset CommandInset citation
+LatexCommand cite
+key "goodman-amstat-1963"
+
+\end_inset
+
+ In the common case where 
+\begin_inset Formula $X=X(\omega)$
+\end_inset
+
+ is the spectrum of a real-valued field 
+\begin_inset Formula $\tilde{X}(t)$
+\end_inset
+
+, both strategies are equivalent in the following sense: one observes that
+ 
+\begin_inset Formula $X$
+\end_inset
+
+ and 
+\begin_inset Formula $X^{*}$
+\end_inset
+
+ are uncorrelated in the complex sense if and only if 
+\begin_inset Formula $X^{\prime}$
+\end_inset
+
+ and 
+\begin_inset Formula $X^{\prime\prime}$
+\end_inset
+
+ are uncorrelated in the real sense.
+ Therefore, since 
+\begin_inset Formula $X^{\prime}(-\omega)=X^{\prime}(\omega)$
+\end_inset
+
+ and 
+\begin_inset Formula $X^{\prime\prime}(-\omega)=-X^{\prime\prime}(\omega)$
+\end_inset
+
+, one can either use strategy (i) on the full spectrum (positive and negative
+ frequencies) or strategy (ii) on the positive spectrum only to obtain the
+ same 
+\begin_inset Formula $t^{2}$
+\end_inset
+
+ score.
+ However, if we employ Eq.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:frestr"
+
+\end_inset
+
+, we can use strategy (ii) also on the full spectrum as the negative part
+ will be removed automatically.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Error bars
+\end_layout
+
+\begin_layout Standard
+By using the sample mean and covariance as input rather than the individual
+ samples, one can interpret Hotelling's 
+\begin_inset Formula $t^{2}$
+\end_inset
+
+ test as statistical test on the error bars 
+\begin_inset Formula $\sigma_{0}$
+\end_inset
+
+ :
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+begin{subequations}
+\end_layout
+
+\end_inset
+
+
+\begin_inset Formula 
+\begin{align}
+H_{0} & :\sigma=\sigma_{0}\label{eq:h0err}\\
+H_{1}^{-} & :\sigma<\sigma_{0}\label{eq:h1m}\\
+H_{1}^{+} & :\sigma>\sigma_{0}\label{eq:h1p}
+\end{align}
+
+\end_inset
+
+
+\begin_inset CommandInset label
+LatexCommand label
+name "eqs:h011"
+
+\end_inset
+
+
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+end{subequations}
+\end_layout
+
+\end_inset
+
+For a scalar estimator (Sec.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:scalar"
+
+\end_inset
+
+), we can distinguish 
+\begin_inset Formula $H_{0}$
+\end_inset
+
+ from 
+\begin_inset Formula $H_{1}^{-}$
+\end_inset
+
+: error bars being 
+\begin_inset Quotes eld
+\end_inset
+
+too small
+\begin_inset Quotes erd
+\end_inset
+
+ 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:h1m"
+
+\end_inset
+
+ is equivalent to the result being inconsistent with the benchmark (Eq.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:h1"
+
+\end_inset
+
+).
+ However, we cannot test against 
+\begin_inset Formula $H_{1}^{+}$
+\end_inset
+
+, since we may have accidentally hit the benchmark accurately.
+ Using a data series, we can also distinguish it from 
+\begin_inset Formula $H_{1}^{+}$
+\end_inset
+
+, formalizing the rule that 
+\begin_inset Quotes eld
+\end_inset
+
+roughly two-thirds of the data should fall within one-sigma error-bars
+\begin_inset Quotes erd
+\end_inset
+
+.
+ This is reflected in the fact that for 
+\begin_inset Formula $n>1$
+\end_inset
+
+, the 
+\begin_inset Formula $F$
+\end_inset
+
+ distribution turns from a one-tailed to a two-tailed distribution, and
+ becomes more symmetric around 
+\begin_inset Formula $1$
+\end_inset
+
+ as 
+\begin_inset Formula $n$
+\end_inset
+
+ gets larger.
+ We can make use of this by testing the lower tail as score for 
+\begin_inset Formula $H_{1}^{+}$
+\end_inset
+
+ and the upper tail as score for 
+\begin_inset Formula $H_{1}^{-}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+This procedure is illustrated at the example of the estimator for 
+\begin_inset Formula $\chi_{i,0}$
+\end_inset
+
+ (Sec.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:series"
+
+\end_inset
+
+).
+ If we ignore the cross-correlation (Fig.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:chi"
+
+\end_inset
+
+d) and interpret the error bars in Fig.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:chi"
+
+\end_inset
+
+b as uncorrelated errors, it is evident from visual inspection that they
+ are too large.
+ We can confirm this numerically by (erroneously) plugging the diagonal
+ elements 
+\begin_inset Formula $\Sigma_{ii}$
+\end_inset
+
+ of the covariance matrix instead of its eigenvalues 
+\begin_inset Formula $s_{i}$
+\end_inset
+
+ into Eq.
+\begin_inset space ~
+\end_inset
+
+(
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:frestr"
+
+\end_inset
+
+).
+ We then find a 
+\begin_inset Formula $T^{2}$
+\end_inset
+
+ score of 
+\begin_inset Formula $0.03$
+\end_inset
+
+ and an acceptance of the lower alternate hypothesis 
+\begin_inset Formula $H_{1}^{+}$
+\end_inset
+
+ (
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:h1m"
+
+\end_inset
+
+) with 
+\begin_inset Formula $p=1-10^{-16}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Section
+Example: Anderson impurity model
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:AIM"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename ../figs/aim-shift.pdf
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+(a) Green's function 
+\begin_inset Formula $G(\tau)$
+\end_inset
+
+ for AIM parameters as in main text: Monte Carlo result (red) and exact
+ result with an artificially introduced shift of the half bin size, i.e.,
+ 
+\begin_inset Formula $G(\tau-0.02)$
+\end_inset
+
+, (black) modeling a binning error; (b) deviation from the exact result
+ in multiples of the standard error as well as a linear regression (black
+ dashed line) 
+\begin_inset Formula $0.539-0.098\tau$
+\end_inset
+
+ with a goodness of fit of 
+\begin_inset Formula $R^{2}\approx0.065$
+\end_inset
+
+.
+\end_layout
+
+\end_inset
+
+
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:gf"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+To illustrate our method on a research example, we examine the single-orbital
+ Anderson impurity model 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "Anderson61"
+
+\end_inset
+
+ (AIM) which characterizes a few discrete and potentially correlated impurity
+ states coupled to a non-interacting bath.
+ The model is in wide use in nano- and transport science 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "Hanson07,Brako81"
+
+\end_inset
+
+ and as an auxiliary model in the dynamical mean field theory 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "georges-rmp-1996"
+
+\end_inset
+
+, and in many parameter regimes quantum Monte Carlo methods are the standard
+ tools for obtaining its properties 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "gull-rmp-2011"
+
+\end_inset
+
+.
+ Its Hamiltonian is
+\begin_inset Formula 
+\begin{equation}
+\begin{split}\mathcal{H}= & \;Uc_{\uparrow}^{\dagger}c_{\downarrow}^{\dagger}c_{\downarrow}c_{\uparrow}-\mu\sum_{\sigma}c_{\sigma}^{\dagger}c_{\sigma}\\
+ & +\sum_{p\sigma}(V_{p\sigma}f_{p\sigma}^{\dagger}c_{\sigma}+\mathrm{h.c.})+\sum_{p\sigma}\epsilon_{p}f_{p\sigma}^{\dagger}f_{p\sigma}.
+\end{split}
+\label{eq:aim}
+\end{equation}
+
+\end_inset
+
+Here, 
+\begin_inset Formula $c_{\sigma}$
+\end_inset
+
+ annihilates a fermion of spin-
+\begin_inset Formula $\sigma$
+\end_inset
+
+ on the impurity and 
+\begin_inset Formula $f_{p\sigma}$
+\end_inset
+
+ annihilates a bath fermion of momentum 
+\begin_inset Formula $p$
+\end_inset
+
+ and spin 
+\begin_inset Formula $\sigma$
+\end_inset
+
+.
+ Impurity interactions are characterized by 
+\begin_inset Formula $U,$
+\end_inset
+
+ 
+\begin_inset Formula $\mu$
+\end_inset
+
+ denotes a chemical potential, 
+\begin_inset Formula $V$
+\end_inset
+
+ a spin- and momentum dependent hybridization term, and 
+\begin_inset Formula $\epsilon_{p}$
+\end_inset
+
+ a momentum-dependent bath dispersion.
+ In the context of the AIM, a truncation of the bath to a few states and
+ subsequent exact diagonalization of the finite system is particularly suitable
+ for testing.
+ While the complexity of solving the model with Monte Carlo methods is the
+ same as for a model without bath truncation, one empirically finds that
+ the truncated model shares much of the physics of the AIM
+\emph on
+ 
+\emph default
+and can thus be used to generate non-trivial, analytically accessible test
+ cases for Monte Carlo simulations.
+\end_layout
+
+\begin_layout Standard
+Our example consists of two momenta and correspondingly two bath sites with
+ energies of 
+\begin_inset Formula $\epsilon_{p}=\pm0.5$
+\end_inset
+
+ and a hybridization strength 
+\begin_inset Formula $V=1$
+\end_inset
+
+, as well as 
+\begin_inset Formula $U=5$
+\end_inset
+
+, 
+\begin_inset Formula $\mu=U/2$
+\end_inset
+
+, and temperature 
+\begin_inset Formula $T=1/10$
+\end_inset
+
+.
+ Stochastic results were obtained using continuous-time quantum Monte Carlo
+ in the hybridization expansion 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "werner-prb-2006,gull-rmp-2011"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+The imaginary time Green's function 
+\begin_inset Formula $G(\tau)=-\langle Tc(\tau)c^{\dagger}(0)\rangle,$
+\end_inset
+
+ which is the fundamental quantity of interest in this model and which is
+ directly related to the interacting spectral function, is shown in Fig.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:gf"
+
+\end_inset
+
+.
+ In order to mimic the effect of a typical binning programming error, we
+ have shifted the exact result (black) by half a bin 
+\begin_inset Formula $G(\tau)\to G(\tau-0.02)$
+\end_inset
+
+.
+ The top panel shows that the Monte Carlo result (red) is still consistent
+ with the exact result in this case when gauged by visual inspection.
+ This is reinforced by the bottom panel, where the deviation from the exact
+ result in multiples of the standard error is plotted (red).
+ Overall we find the expected result, even though a linear fit of the data
+ (shown as black dashed line) shows a slight downward slope indicative of
+ a problem.
+\end_layout
+
+\begin_layout Standard
+However, Hotelling's 
+\begin_inset Formula $T^{2}$
+\end_inset
+
+ test finds a test statistic of 
+\begin_inset Formula $T^{2}\approx1.28$
+\end_inset
+
+ and therefore a rejection of the null hypothesis in favor of 
+\begin_inset Formula $H_{1}^{+}$
+\end_inset
+
+ with 
+\begin_inset Formula $p\approx0.0026$
+\end_inset
+
+ (about three sigma).
+ This is because by using all 
+\begin_inset Formula $n=250$
+\end_inset
+
+ data points, the test becomes sensitive to a small increase of the values
+ outside of error bars.
+ Systematically increasing the statistics would eventually expose the deviation
+ to visual inspection.
+\end_layout
+
+\begin_layout Section
+Conclusions
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:conclusions"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+In this paper, we have shown how hypothesis testing can be used to develop
+ tests for code correctness of Monte Carlo codes in statistical and condensed
+ matter physics.
+ We also have shown how these tests are sensitive to different types of
+ simulation problems, and how they can therefore be used as diagnostic tools
+ to ensure the correctness of simulations.
+\end_layout
+
+\begin_layout Standard
+The mathematical framework for hypothesis testing has been known for over
+ 100 years and statistical tests are in wide use across many scientific
+ fields.
+ Despite this, the technique is not used on a routine basis for testing
+ scientific simulation results.
+ With the advent of automatic testing and unit test frameworks, which have
+ permeated most of software engineering and to some extent also scientific
+ computing, our techniques add to the testing toolkits that can be used
+ to systematically ensure correctness and reproducibility of stochastic
+ physics simulations.
+ These tests integrate well into existing testing frameworks and can validate
+ parts of the programs that are otherwise difficult to test.
+\end_layout
+
+\begin_layout Standard
+Hypothesis testing allows to gain and keep trust in complex codes as they
+ undergo modifications, and to uncover problems that are difficult to uncover
+ by other means, e.g.
+ manual visual inspection.
+ This both increases the speed of scientific software development and the
+ trust in results produced by complex computer programs.
+\end_layout
+
+\begin_layout Standard
+In our opinion hypothesis testing should be widely adopted in statistical
+ simulation codes and should become a standard tool in scientific software
+ development.
+ While implementing these tests carries a small overhead, we argue that
+ rigorous, frequent, and automatic testing is necessary for today's codes,
+ especially in light of the replication crisis 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "Baker16"
+
+\end_inset
+
+ observed in other fields of science.
+\end_layout
+
+\begin_layout Standard
+The code for the stochastic solvers and the hypothesis testing post-processing
+ scripts are available from the authors upon request.
+ An open-source software implementation of hypothesis testing is scheduled
+ for inclusion in the upcoming version of the ALPS core libraries.
+\begin_inset CommandInset citation
+LatexCommand cite
+key "ALPSCore17"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Acknowledgments
+The authors would like to thank Alexander Gaenko for fruitful discussions.
+ MW was supported by the Simons Foundation via the Simons Collaboration
+ on the Many-Electron Problem.
+ EG was supported by DOE grant no.
+ ER46932.
+ This research used resources of the National Energy Research Scientific
+ Computing Center, a DOE Office of Science User Facility supported by the
+ Office of Science of the U.S.
+ Department of Energy under Contract No.
+ DE-AC02-05CH11231.
+\end_layout
+
+\begin_layout Standard
+\begin_inset CommandInset bibtex
+LatexCommand bibtex
+bibfiles "hypot"
+options "apsrev4-1"
+
+\end_inset
+
+
+\end_layout
+
+\end_body
+\end_document

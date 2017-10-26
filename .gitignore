@@ -1,0 +1,16 @@
+.*
+!.gitignore
+
+*~
+\#*#
+
+*Notes.bib
+*.bbl
+*.blg
+*.aux
+*.log
+*.out
+*.pdf
+
+!figs/*.pdf
+
