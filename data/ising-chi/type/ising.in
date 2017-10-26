@@ -1,0 +1,5 @@
+rows=32
+columns=32
+sweeps=1000000
+temperature=2.3
+updates=0

@@ -1,0 +1,6 @@
+rows=32
+columns=32
+sweeps=50000
+temperature=2.3
+updates=1
+buggy=true
