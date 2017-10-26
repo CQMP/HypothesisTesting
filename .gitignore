@@ -13,5 +13,6 @@
 *.pdf
 
 !figs/*.pdf
+!promo/*.pdf
 
 *build*/
