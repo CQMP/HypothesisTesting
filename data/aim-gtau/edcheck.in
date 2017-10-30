@@ -1,0 +1,13 @@
+beta 10
+int-type density
+u-value 5.0
+mu 2.5
+eloc e0
+nflavours 2
+bath-e epsk
+bath-v vk
+niwf 50
+ntau 200
+steps 20000000
+sweep-size 100
+warmup .10
