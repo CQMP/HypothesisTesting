@@ -104,12 +104,14 @@ def diag_covariance(diff, cov, evtol=1e-14):
     if cov.shape != (ndata, ndata):
         raise ValueError("cov is not a covariance matrix w.r.t. to diff")
     if not np.allclose(cov.conj().T, cov):
-        raise ValueError("cov is not ")
+        raise ValueError("cov is not Hermitean")
 
     # diagonalize covariance matrix and discard small eigenvalues, removing
     #   - data points that are just copies of other (perfect correlation)
     #   - data points that are forced to a value by symmetry (zero variance)
     ev, eb = np.linalg.eigh(cov)
+    assert np.allclose(ev.imag, 0)
+    ev = ev.real
     if (ev < -evtol).any():
         warn("Covariance matrix is not positive semidefinite", UserWarning, 2)
     ndata_dep = ev.searchsorted(evtol)
@@ -142,6 +144,8 @@ def tsquared_score(diff, var, nbatches):
         raise ValueError("variances must be positive and real")
 
     tsquared = nbatches * (diff.conj() * diff / var.real).sum()
+    assert np.allclose(tsquared.imag, 0)
+    tsquared = tsquared.real
 
     # Check that the degrees of freedom are enough
     dof = nbatches - ndata
@@ -175,6 +179,8 @@ def tsquared_symm_score(diff, pooled_var, nbatches_x, nbatches_y):
     nbatches = nbatches_x + nbatches_y
     nbatches_weighed = nbatches_x * nbatches_y/(nbatches_x + nbatches_y)
     tsquared = nbatches_weighed * (diff.conj() * diff / pooled_var.real).sum()
+    assert np.allclose(tsquared.imag, 0)
+    tsquared = tsquared.real
 
     # Check that the degrees of freedom are enough
     dof = nbatches - ndata - 1
