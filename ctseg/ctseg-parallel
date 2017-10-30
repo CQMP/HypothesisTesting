@@ -1,0 +1,43 @@
+#!/bin/bash
+set -e
+
+function killchildren {
+  jobs -p | xargs kill
+}
+
+trap killchildren SIGINT
+
+ctseg --setup "$@"
+
+# uncompress
+seg_dir=$(ls -td1 ./cthyb-* | head -n1)
+
+#(
+#    echo "Unpacking batches ..."
+#    cd "$seg_dir"
+#    tar -xzf "batches.tgz" && rm "batches.tgz" || echo "No batches to extract"
+#)
+
+ncpus=$(getconf _NPROCESSORS_ONLN)
+echo "Found $ncpus CPUS ..."
+
+for i in $(seq 1 "$ncpus")
+do
+    ctseg --run "$@" --seed $i &
+    pids[$i]=$!
+done
+
+for pid in ${pids[*]}
+do
+    wait $pid
+done
+
+ctseg --collect "$@" | tee "$seg_dir/summary.dat"
+
+# compress
+#(
+#    echo "Packing batches ..."
+#    cd "$seg_dir"
+#    tar -czf "batches.tgz" batch-*.npz && rm batch-*.npz
+#)
+
