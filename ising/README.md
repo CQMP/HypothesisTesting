@@ -12,12 +12,13 @@ Needs FFTW3 and ALPSCore.
 To build:
 
     $ mkdir build
+    $ cd build
     $ cmake .. -DCMAKE_BUILD_TYPE=Release
     $ make
 
 To run:
 
-    $ ./build/ising --help
+    $ ./ising --help
     
 To install:
 
